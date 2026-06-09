@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard KPI – Satisfacción de Servicio</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222637;
+      --accent: #6c63ff;
+      --accent2: #00d4aa;
+      --accent3: #ff6b6b;
+      --accent4: #ffd166;
+      --text: #e8eaf0;
+      --muted: #8890a8;
+      --border: #2e3248;
+      --green: #06d6a0;
+      --yellow: #ffd166;
+      --red: #ef476f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+    header .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-top: 8px;
+    }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 36px 0 16px;
+      padding-left: 12px;
+      border-left: 4px solid var(--accent);
+      color: var(--text);
+    }
+    .section-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-left: 16px;
+    }
+
+    /* ── Grid layouts ── */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; margin-top: 20px; }
+    .table-wrap { overflow-x: auto; margin-top: 16px; }
+
+    /* ── KPI card ── */
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 18px;
+      position: relative;
+      transition: transform 0.15s;
+    }
+    .kpi-card:hover { transform: translateY(-3px); }
+    .kpi-card .label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .kpi-card .value { font-size: 2rem; font-weight: 700; }
+    .kpi-card .unit  { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .kpi-card .trend { font-size: 0.78rem; margin-top: 8px; }
+    .kpi-card .trend.up   { color: var(--green); }
+    .kpi-card .trend.down { color: var(--red); }
+    .kpi-card .trend.neutral { color: var(--yellow); }
+    .kpi-card .dot {
+      position: absolute;
+      top: 16px; right: 16px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .dot-green  { background: var(--green); }
+    .dot-yellow { background: var(--yellow); }
+    .dot-red    { background: var(--red); }
+
+    /* ── Chart card ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .chart-card h3 { font-size: 0.9rem; color: var(--muted); margin-bottom: 14px; }
+    .chart-card canvas { max-height: 220px; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--muted);
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 9px 12px; color: var(--text); white-space: nowrap; }
+    tbody td.metric { font-weight: 600; }
+    td.good  { color: var(--green); font-weight: 700; }
+    td.warn  { color: var(--yellow); font-weight: 700; }
+    td.bad   { color: var(--red); font-weight: 700; }
+
+    /* ── Pill badge ── */
+    .pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+    .pill-green  { background: rgba(6,214,160,0.15); color: var(--green); }
+    .pill-yellow { background: rgba(255,209,102,0.15); color: var(--yellow); }
+    .pill-red    { background: rgba(239,71,111,0.15); color: var(--red); }
+
+    /* ── Progress bar ── */
+    .progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .progress-label { min-width: 180px; font-size: 0.8rem; color: var(--muted); }
+    .progress-bar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+    .progress-val { min-width: 42px; text-align: right; font-size: 0.8rem; font-weight: 600; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+    /* ── Alert box ── */
+    .alert {
+      background: rgba(255,209,102,0.08);
+      border: 1px solid rgba(255,209,102,0.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 0.84rem;
+      color: var(--yellow);
+      margin-top: 12px;
+    }
+    .alert strong { font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard KPI – Satisfacción de Servicio</h1>
+  <p>Medición del grado de satisfacción de alumnos y captura de áreas de mejora</p>
+  <span class="badge">Diciembre 2024 → Junio 2025</span>
+</header>
+
+<!-- ═══════════════════════════════════════════════════
+     RESUMEN EJECUTIVO
+════════════════════════════════════════════════════ -->
+<div class="section-title">Resumen Ejecutivo <span class="section-sub">Últimos datos disponibles (Mayo–Junio 2025)</span></div>
+
+<div class="cards-grid">
+  <div class="kpi-card">
+    <div class="dot dot-green"></div>
+    <div class="label">Puntaje General F1</div>
+    <div class="value" style="color:var(--green)">8.56</div>
+    <div class="unit">/ 10 — Módulo 1</div>
+    <div class="trend down">↓ vs Mayo (9.64) — Junio baja muestra</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-green"></div>
+    <div class="label">Satisfacción Final F3</div>
+    <div class="value" style="color:var(--green)">9.29</div>
+    <div class="unit">/ 10 — Cierre de programa</div>
+    <div class="trend neutral">→ Estable ~9.4 promedio</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-yellow"></div>
+    <div class="label">NPS Promedio F3</div>
+    <div class="value" style="color:var(--yellow)">9.04</div>
+    <div class="unit">/ 10 — Net Promoter Score</div>
+    <div class="trend neutral">→ Histórico consistente +9</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-red"></div>
+    <div class="label">Oport. Laborales F4</div>
+    <div class="value" style="color:var(--red)">10.00</div>
+    <div class="unit">/ 10 — Post-programa (Junio 1 alum.)</div>
+    <div class="trend up">↑ Mejora vs meses anteriores</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-yellow"></div>
+    <div class="label">Claridad del Roadmap</div>
+    <div class="value" style="color:var(--yellow)">66.67%</div>
+    <div class="unit">% — Junio 2025 (↓ alerta)</div>
+    <div class="trend down">↓ Mínimo histórico — baja muestra</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-yellow"></div>
+    <div class="label">Acompañamiento F2</div>
+    <div class="value" style="color:var(--yellow)">6.33</div>
+    <div class="unit">/ 10 — CSM Junio 2025</div>
+    <div class="trend down">↓ Mínimo histórico — área de mejora</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-green"></div>
+    <div class="label">Alumnos F1 Activos</div>
+    <div class="value" style="color:var(--accent2)">161</div>
+    <div class="unit">alumnos totales (Dic–Jun)</div>
+    <div class="trend neutral">→ Pico en Enero (42)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="dot dot-green"></div>
+    <div class="label">Evaluación Contenido F3</div>
+    <div class="value" style="color:var(--green)">9.58</div>
+    <div class="unit">/ 10 — promedio histórico</div>
+    <div class="trend up">↑ Consistentemente alto</div>
+  </div>
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════
+     FORMULARIO 1 — Módulo 1 (Inicio del programa)
+════════════════════════════════════════════════════ -->
+<div class="section-title">Formulario 1 — Módulo 1 (Inicio del programa)</div>
+<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Evalúa claridad del roadmap, puntaje general y velocidad de arranque.</p>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>Puntaje General (1–10)</h3>
+    <canvas id="f1Score"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Claridad del Roadmap (%)</h3>
+    <canvas id="f1Roadmap"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Alumnos que completaron F1</h3>
+    <canvas id="f1Alumnos"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Tiempo de culminación Módulo 1 (días)</h3>
+    <canvas id="f1Tiempo"></canvas>
+  </div>
+</div>
+
+<div class="table-wrap" style="margin-top:24px;">
+  <table>
+    <thead>
+      <tr>
+        <th>KPI</th>
+        <th>UM</th>
+        <th>Dic</th><th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
+        <th>Tendencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric">Alumnos</td><td>n</td>
+        <td>30</td><td>42</td><td>12</td><td>27</td><td>19</td><td>22</td><td>9</td>
+        <td><span class="pill pill-yellow">Variable</span></td>
+      </tr>
+      <tr>
+        <td class="metric">Claridad del Roadmap</td><td>%</td>
+        <td class="good">90%</td><td class="good">95%</td><td class="good">94%</td><td class="good">89%</td><td class="good">95%</td><td class="good">91%</td><td class="warn">67%</td>
+        <td><span class="pill pill-yellow">↓ Jun</span></td>
+      </tr>
+      <tr>
+        <td class="metric">Puntaje General</td><td>1–10</td>
+        <td class="good">8.95</td><td class="good">9.21</td><td class="good">9.19</td><td class="good">9.52</td><td class="good">9.21</td><td class="good">9.64</td><td class="warn">8.56</td>
+        <td><span class="pill pill-green">Alto</span></td>
+      </tr>
+      <tr>
+        <td class="metric">Tiempo culminación Mód. 1</td><td>días</td>
+        <td>25.5</td><td>31.5</td><td>15.6</td><td>27.8</td><td>11.1</td><td class="good">4.6</td><td>22.4</td>
+        <td><span class="pill pill-yellow">Variable</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="alert">
+  <strong>⚠ Área de atención:</strong> Junio 2025 muestra una caída en Claridad del Roadmap (67%) y Puntaje General (8.56). Muestra pequeña (9 alumnos) — verificar si se trata de un segmento específico o un problema sistémico.
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════
+     FORMULARIO 2 — Módulo 5 (Mitad del programa)
+════════════════════════════════════════════════════ -->
+<div class="section-title">Formulario 2 — Módulo 5 (Mitad del programa)</div>
+<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Mide acompañamiento del CSM, satisfacción intermedia y actividad de los alumnos.</p>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>Acompañamiento CSM (1–10)</h3>
+    <canvas id="f2Acomp"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Satisfacción Programa Inicial (1–10)</h3>
+    <canvas id="f2Sat"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>% Actividad de Alumnos (1–10)</h3>
+    <canvas id="f2Act"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Tiempo culminación Módulo 5 (días)</h3>
+    <canvas id="f2Tiempo"></canvas>
+  </div>
+</div>
+
+<div class="table-wrap" style="margin-top:24px;">
+  <table>
+    <thead>
+      <tr>
+        <th>KPI</th><th>UM</th>
+        <th>Dic</th><th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
+        <th>Tendencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric">Alumnos</td><td>n</td>
+        <td>9</td><td>11</td><td>10</td><td>11</td><td>13</td><td>16</td><td>3</td>
+        <td><span class="pill pill-green">↑ hasta May</span></td>
+      </tr>
+      <tr>
+        <td class="metric">Acompañamiento CSM</td><td>1–10</td>
+        <td class="good">8.56</td><td class="good">9.64</td><td>8.00</td><td class="good">9.09</td><td class="good">9.31</td><td>8.06</td><td class="bad">6.33</td>
+        <td><span class="pill pill-red">↓ Jun crítico</span></td>
+      </tr>
+      <tr>
+        <td class="metric">Satisfacción Inicial</td><td>1–10</td>
+        <td class="good">9.11</td><td class="good">9.45</td><td>8.90</td><td class="good">9.18</td><td class="good">9.62</td><td>9.00</td><td class="good">9.67</td>
+        <td><span class="pill pill-green">Estable-alto</span></td>
+      </tr>
+      <tr>
+        <td class="metric">% Actividad Alumnos</td><td>1–10</td>
+        <td class="good">9.22</td><td>6.64</td><td>6.20</td><td>7.00</td><td>7.08</td><td>5.94</td><td class="warn">5.33</td>
+        <td><span class="pill pill-red">↓ Tendencia baja</span></td>
+      </tr>
+      <tr>
+        <td class="metric">Tiempo Módulo 5</td><td>días</td>
+        <td>61.4</td><td>61.7</td><td>76.4</td><td>58.2</td><td>76.8</td><td>68.9</td><td>62.7</td>
+        <td><span class="pill pill-yellow">Variable ~65d</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="alert">
+  <strong>⚠ Área crítica:</strong> El Acompañamiento CSM cayó a 6.33 en Junio (mínimo histórico). La Actividad de Alumnos muestra tendencia bajista sostenida desde Dic (9.22) → Jun (5.33). Requiere acción inmediata del equipo de Customer Success.
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════
+     FORMULARIO 3 — Cierre de programa
+════════════════════════════════════════════════════ -->
+<div class="section-title">Formulario 3 — Cierre de programa (Egreso)</div>
+<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Evaluación completa al finalizar: contenido, comunidad, llamadas, acompañamiento y NPS.</p>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>Satisfacción General Programa (1–10)</h3>
+    <canvas id="f3Sat"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>NPS – Net Promoter Score (1–10)</h3>
+    <canvas id="f3NPS"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Evaluaciones detalladas (promedio Dic–May)</h3>
+    <canvas id="f3Radar"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Tiempo culminación programa (días)</h3>
+    <canvas id="f3Tiempo"></canvas>
+  </div>
+</div>
+
+<div class="table-wrap" style="margin-top:24px;">
+  <table>
+    <thead>
+      <tr>
+        <th>KPI</th><th>UM</th>
+        <th>Dic</th><th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th>
+        <th>Promedio</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric">Alumnos egresados</td><td>n</td>
+        <td>7</td><td>8</td><td>7</td><td>8</td><td>4</td><td>7</td>
+        <td>6.8</td>
+      </tr>
+      <tr>
+        <td class="metric">Tiempo de culminación</td><td>días</td>
+        <td>82.3</td><td>75.0</td><td>55.0</td><td>74.6</td><td>34.5</td><td>66.7</td>
+        <td class="warn">64.7</td>
+      </tr>
+      <tr>
+        <td class="metric">Satisfacción General</td><td>1–10</td>
+        <td class="good">9.75</td><td class="good">9.63</td><td class="good">9.43</td><td class="good">9.13</td><td class="good">10.00</td><td class="good">9.29</td>
+        <td class="good">9.54</td>
+      </tr>
+      <tr>
+        <td class="metric">Evaluación de Contenido</td><td>1–10</td>
+        <td class="good">9.75</td><td class="good">9.63</td><td class="good">9.86</td><td class="good">9.25</td><td class="good">10.00</td><td class="good">9.43</td>
+        <td class="good">9.65</td>
+      </tr>
+      <tr>
+        <td class="metric">Evaluación de Comunidad</td><td>1–10</td>
+        <td class="good">9.25</td><td>8.75</td><td>9.00</td><td class="good">9.25</td><td class="good">9.25</td><td>8.43</td>
+        <td class="good">8.99</td>
+      </tr>
+      <tr>
+        <td class="metric">Evaluación de Llamadas</td><td>1–10</td>
+        <td>8.75</td><td>9.00</td><td>8.43</td><td>8.88</td><td class="good">9.75</td><td>8.86</td>
+        <td class="good">8.95</td>
+      </tr>
+      <tr>
+        <td class="metric">Evaluación Acompañamiento</td><td>1–10</td>
+        <td class="good">9.50</td><td class="good">9.38</td><td>8.71</td><td class="good">9.25</td><td class="good">9.50</td><td>9.00</td>
+        <td class="good">9.22</td>
+      </tr>
+      <tr>
+        <td class="metric">NPS</td><td>1–10</td>
+        <td class="good">9.50</td><td class="good">9.13</td><td class="good">9.14</td><td>8.75</td><td class="good">10.00</td><td>8.71</td>
+        <td class="good">9.21</td>
+      </tr>
+      <tr>
+        <td class="metric">Preparación para aplicar</td><td>1–10</td>
+        <td>8.50</td><td>7.75</td><td>8.71</td><td>8.38</td><td class="good">9.75</td><td>8.43</td>
+        <td>8.59</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════
+     FORMULARIO 4 — Post-programa (Seguimiento)
+════════════════════════════════════════════════════ -->
+<div class="section-title">Formulario 4 — Post-programa (Seguimiento laboral)</div>
+<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Mide inserción laboral, entrevistas y percepción de preparación luego de egresar.</p>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <h3>Oportunidades Laborales (1–10)</h3>
+    <canvas id="f4Laboral"></canvas>
+  </div>
+  <div class="chart-card">
+    <h3>Satisfacción General Post-programa (1–10)</h3>
+    <canvas id="f4Sat"></canvas>
+  </div>
+</div>
+
+<div class="table-wrap" style="margin-top:24px;">
+  <table>
+    <thead>
+      <tr>
+        <th>KPI</th><th>UM</th>
+        <th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
+        <th>Promedio</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric">Alumnos respondieron</td><td>n</td>
+        <td>4</td><td>4</td><td>6</td><td>5</td><td>2</td><td>1</td>
+        <td>3.7</td>
+      </tr>
+      <tr>
+        <td class="metric">Satisfacción General</td><td>1–10</td>
+        <td class="good">9.00</td><td class="good">9.50</td><td class="good">9.17</td><td>8.80</td><td>7.50</td><td class="good">10.00</td>
+        <td class="good">9.00</td>
+      </tr>
+      <tr>
+        <td class="metric">Oportunidades Laborales</td><td>1–10</td>
+        <td class="bad">0.00</td><td class="bad">3.00</td><td>6.00</td><td class="warn">3.60</td><td>6.00</td><td class="good">10.00</td>
+        <td class="warn">4.77</td>
+      </tr>
+      <tr>
+        <td class="metric">Entrevistas realizadas</td><td>1–10</td>
+        <td>2.00</td><td class="bad">0.00</td><td>0.50</td><td>0.40</td><td class="bad">0.00</td><td>2.00</td>
+        <td class="bad">0.82</td>
+      </tr>
+      <tr>
+        <td class="metric">Preparado para aplicar</td><td>1–10</td>
+        <td>7.25</td><td>7.75</td><td>7.00</td><td>8.00</td><td>7.00</td><td>—</td>
+        <td>7.40</td>
+      </tr>
+      <tr>
+        <td class="metric">Acomp. post-programa</td><td>1–10</td>
+        <td>8.25</td><td>7.50</td><td>7.83</td><td>7.80</td><td class="warn">5.50</td><td class="good">10.00</td>
+        <td>7.81</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="alert">
+  <strong>⚠ Área de mejora clave:</strong> Oportunidades Laborales promedia solo 4.77/10 y las Entrevistas realizadas apenas 0.82/10. Esto indica que los egresados encuentran dificultad para convertir lo aprendido en inserción laboral efectiva. Revisar el componente de empleabilidad y network del programa.
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════
+     ÍNDICE DE SATISFACCIÓN GLOBAL — Barras de progreso
+════════════════════════════════════════════════════ -->
+<div class="section-title">Índice Global de Satisfacción <span class="section-sub">Promedio histórico por dimensión</span></div>
+
+<div class="chart-card" style="max-width:680px;">
+  <div class="progress-row">
+    <div class="progress-label">Evaluación de Contenido (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:96.5%;background:var(--green)"></div></div>
+    <div class="progress-val" style="color:var(--green)">9.65</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Satisfacción General Egreso (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:95.4%;background:var(--green)"></div></div>
+    <div class="progress-val" style="color:var(--green)">9.54</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Acompañamiento en programa (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:92.2%;background:var(--green)"></div></div>
+    <div class="progress-val" style="color:var(--green)">9.22</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">NPS – Net Promoter Score (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:92.1%;background:var(--green)"></div></div>
+    <div class="progress-val" style="color:var(--green)">9.21</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Evaluación de Llamadas (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:89.5%;background:var(--green)"></div></div>
+    <div class="progress-val" style="color:var(--green)">8.95</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Evaluación de Comunidad (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:89.9%;background:var(--green)"></div></div>
+    <div class="progress-val" style="color:var(--green)">8.99</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Preparación para aplicar (F3)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:85.9%;background:var(--accent)"></div></div>
+    <div class="progress-val" style="color:var(--accent)">8.59</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Acompañamiento Post-prog. (F4)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:78.1%;background:var(--yellow)"></div></div>
+    <div class="progress-val" style="color:var(--yellow)">7.81</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Preparado para aplicar (F4)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:74%;background:var(--yellow)"></div></div>
+    <div class="progress-val" style="color:var(--yellow)">7.40</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Oportunidades Laborales (F4)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:47.7%;background:var(--red)"></div></div>
+    <div class="progress-val" style="color:var(--red)">4.77</div>
+  </div>
+  <div class="progress-row">
+    <div class="progress-label">Entrevistas realizadas (F4)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:8.2%;background:var(--red)"></div></div>
+    <div class="progress-val" style="color:var(--red)">0.82</div>
+  </div>
+</div>
+
+<hr />
+
+<!-- ═══════════════════════════════════════════════════
+     ÁREAS DE MEJORA
+════════════════════════════════════════════════════ -->
+<div class="section-title">Áreas de Mejora Prioritarias</div>
+
+<div class="cards-grid">
+  <div class="kpi-card" style="border-color:var(--red);">
+    <div class="label" style="color:var(--red)">🔴 Prioridad Alta</div>
+    <div style="font-weight:700;margin:8px 0 4px;">Inserción Laboral</div>
+    <div style="font-size:0.82rem;color:var(--muted)">Oportunidades laborales (4.77) y entrevistas (0.82) muy por debajo del resto. El programa no está generando suficientes salidas laborales concretas.</div>
+  </div>
+  <div class="kpi-card" style="border-color:var(--red);">
+    <div class="label" style="color:var(--red)">🔴 Prioridad Alta</div>
+    <div style="font-weight:700;margin:8px 0 4px;">Acompañamiento CSM (F2)</div>
+    <div style="font-size:0.82rem;color:var(--muted)">Cayó a 6.33 en Junio y muestra tendencia descendente. El Customer Success Manager necesita reforzar presencia en la etapa del Módulo 5.</div>
+  </div>
+  <div class="kpi-card" style="border-color:var(--yellow);">
+    <div class="label" style="color:var(--yellow)">🟡 Prioridad Media</div>
+    <div style="font-weight:700;margin:8px 0 4px;">Actividad de Alumnos (F2)</div>
+    <div style="font-size:0.82rem;color:var(--muted)">Bajó de 9.22 (Dic) a 5.33 (Jun). Indica menor engagement en la etapa intermedia del programa. Revisar dinámicas de motivación.</div>
+  </div>
+  <div class="kpi-card" style="border-color:var(--yellow);">
+    <div class="label" style="color:var(--yellow)">🟡 Prioridad Media</div>
+    <div style="font-weight:700;margin:8px 0 4px;">Claridad del Roadmap (F1)</div>
+    <div style="font-size:0.82rem;color:var(--muted)">Junio marcó 67% (vs ~92% promedio histórico). Si se confirma en próximos meses, revisar el onboarding y presentación del programa.</div>
+  </div>
+  <div class="kpi-card" style="border-color:var(--accent);">
+    <div class="label" style="color:var(--accent)">🔵 Prioridad Baja</div>
+    <div style="font-weight:700;margin:8px 0 4px;">Tiempo de Culminación</div>
+    <div style="font-size:0.82rem;color:var(--muted)">El Módulo 5 tarda ~65 días en promedio y el programa completo ~65 días. Alta variabilidad entre cohortes — explorar aceleración.</div>
+  </div>
+  <div class="kpi-card" style="border-color:var(--green);">
+    <div class="label" style="color:var(--green)">✅ Fortaleza</div>
+    <div style="font-weight:700;margin:8px 0 4px;">Contenido & NPS</div>
+    <div style="font-size:0.82rem;color:var(--muted)">El contenido (9.65) y NPS (9.21) son sostenidamente altos. Son los pilares del programa — mantener y comunicar como diferencial.</div>
+  </div>
+</div>
+
+<p style="text-align:center;color:var(--muted);font-size:0.78rem;margin-top:40px;">
+  Dashboard generado automáticamente • Datos: Formularios F1–F4 del sistema de satisfacción • Período: Dic 2024 – Jun 2025
+</p>
+
+<!-- ═══════════════════════════════════════════════════
+     SCRIPTS DE GRÁFICOS
+════════════════════════════════════════════════════ -->
+<script>
+const MONTHS = ['Dic','Ene','Feb','Mar','Abr','May','Jun'];
+const COLORS = {
+  purple: 'rgba(108,99,255,1)',
+  purpleLight: 'rgba(108,99,255,0.15)',
+  teal: 'rgba(0,212,170,1)',
+  tealLight: 'rgba(0,212,170,0.15)',
+  red: 'rgba(239,71,111,1)',
+  redLight: 'rgba(239,71,111,0.15)',
+  yellow: 'rgba(255,209,102,1)',
+  yellowLight: 'rgba(255,209,102,0.15)',
+};
+
+Chart.defaults.color = '#8890a8';
+Chart.defaults.borderColor = '#2e3248';
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+
+function lineChart(id, label, data, color, min, max) {
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: [{
+        label,
+        data,
+        borderColor: color,
+        backgroundColor: color.replace('1)', '0.12)'),
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min, max, grid: { color: '#2e3248' } },
+        x: { grid: { color: '#2e3248' } }
+      }
+    }
+  });
+}
+
+function barChart(id, label, data, color) {
+  new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{
+        label,
+        data,
+        backgroundColor: color.replace('1)', '0.7)'),
+        borderColor: color,
+        borderWidth: 1.5,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid: { color: '#2e3248' } },
+        x: { grid: { color: '#2e3248' } }
+      }
+    }
+  });
+}
+
+// F1
+lineChart('f1Score', 'Puntaje General', [8.95,9.21,9.19,9.52,9.21,9.64,8.56], COLORS.purple, 7, 10);
+lineChart('f1Roadmap', 'Claridad Roadmap %', [90,95.24,93.75,88.89,94.74,90.91,66.67], COLORS.teal, 50, 100);
+barChart('f1Alumnos', 'Alumnos', [30,42,12,27,19,22,9], COLORS.yellow);
+barChart('f1Tiempo', 'Días', [25.5,31.5,15.57,27.78,11.13,4.58,22.44], COLORS.purple);
+
+// F2
+lineChart('f2Acomp', 'Acompañamiento CSM', [8.56,9.64,8.00,9.09,9.31,8.06,6.33], COLORS.red, 5, 10);
+lineChart('f2Sat', 'Satisfacción Inicial', [9.11,9.45,8.90,9.18,9.62,9.00,9.67], COLORS.teal, 7, 10);
+lineChart('f2Act', '% Actividad', [9.22,6.64,6.20,7.00,7.08,5.94,5.33], COLORS.yellow, 4, 10);
+barChart('f2Tiempo', 'Días Mód. 5', [61.4,61.73,76.40,58.18,76.82,68.86,62.67], COLORS.purple);
+
+// F3 (sin Junio — N/A)
+const MONTHS_F3 = ['Dic','Ene','Feb','Mar','Abr','May'];
+function lineChartF3(id, label, data, color) {
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: MONTHS_F3,
+      datasets: [{
+        label,
+        data,
+        borderColor: color,
+        backgroundColor: color.replace('1)', '0.12)'),
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 7, max: 10.5, grid: { color: '#2e3248' } },
+        x: { grid: { color: '#2e3248' } }
+      }
+    }
+  });
+}
+lineChartF3('f3Sat', 'Satisfacción General', [9.75,9.63,9.43,9.13,10.00,9.29], COLORS.teal);
+lineChartF3('f3NPS', 'NPS', [9.50,9.13,9.14,8.75,10.00,8.71], COLORS.purple);
+
+// F3 Radar
+new Chart(document.getElementById('f3Radar'), {
+  type: 'radar',
+  data: {
+    labels: ['Contenido','Comunidad','Llamadas','Acomp.','NPS','Preparación'],
+    datasets: [{
+      label: 'Promedio Dic–May',
+      data: [9.65, 8.99, 8.95, 9.22, 9.21, 8.59],
+      backgroundColor: 'rgba(108,99,255,0.18)',
+      borderColor: COLORS.purple,
+      borderWidth: 2,
+      pointBackgroundColor: COLORS.purple,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      r: {
+        min: 7, max: 10,
+        grid: { color: '#2e3248' },
+        angleLines: { color: '#2e3248' },
+        pointLabels: { color: '#8890a8', font: { size: 10 } },
+        ticks: { backdropColor: 'transparent', stepSize: 1 }
+      }
+    }
+  }
+});
+
+new Chart(document.getElementById('f3Tiempo'), {
+  type: 'bar',
+  data: {
+    labels: MONTHS_F3,
+    datasets: [{
+      label: 'Días',
+      data: [82.3,75.0,55.0,74.63,34.5,66.67],
+      backgroundColor: 'rgba(0,212,170,0.6)',
+      borderColor: COLORS.teal,
+      borderWidth: 1.5,
+      borderRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: '#2e3248' } },
+      x: { grid: { color: '#2e3248' } }
+    }
+  }
+});
+
+// F4
+const MONTHS_F4 = ['Ene','Feb','Mar','Abr','May','Jun'];
+function lineF4(id, label, data, color) {
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: MONTHS_F4,
+      datasets: [{
+        label,
+        data,
+        borderColor: color,
+        backgroundColor: color.replace('1)', '0.12)'),
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+        tension: 0.35,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 11, grid: { color: '#2e3248' } },
+        x: { grid: { color: '#2e3248' } }
+      }
+    }
+  });
+}
+lineF4('f4Laboral', 'Oportunidades Laborales', [0,3,6,3.6,6,10], COLORS.yellow);
+lineF4('f4Sat', 'Satisfacción General Post-prog.', [9,9.5,9.17,8.8,7.5,10], COLORS.teal);
+</script>
+
+</body>
+</html>
