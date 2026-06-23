@@ -70,6 +70,65 @@
     .alert { background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.25); border-radius: 10px; padding: 14px 18px; font-size: 0.84rem; color: var(--yellow); margin-top: 12px; }
     hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
     footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 40px; }
+
+    /* ── Comments section ── */
+    .comments-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .tab-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 6px 16px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tab-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+    .comments-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 700px) { .comments-grid { grid-template-columns: 1fr; } }
+
+    .comments-col h3 {
+      font-size: 0.9rem; font-weight: 700; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .comment-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+      border-left: 3px solid transparent;
+    }
+    .comment-card.positive { border-left-color: var(--green); }
+    .comment-card.critical { border-left-color: var(--red); }
+    .comment-card .cc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .comment-card .cc-name  { font-weight: 600; font-size: 0.85rem; }
+    .comment-card .cc-form  { font-size: 0.72rem; color: var(--muted); background: var(--surface2); padding: 2px 7px; border-radius: 10px; }
+    .comment-card .cc-score {
+      font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: auto;
+    }
+    .cc-score.high { background: rgba(6,214,160,0.15); color: var(--green); }
+    .cc-score.mid  { background: rgba(255,209,102,0.15); color: var(--yellow); }
+    .cc-score.low  { background: rgba(239,71,111,0.15); color: var(--red); }
+    .comment-card .cc-text { font-size: 0.83rem; color: var(--muted); line-height: 1.55; }
+    .comment-card .cc-label { font-size: 0.72rem; color: var(--muted); margin-top: 8px; font-style: italic; }
+    .no-comments { color: var(--muted); font-size: 0.83rem; padding: 20px 0; text-align: center; }
+    #comments-loading { text-align: center; color: var(--muted); padding: 30px; font-size: 0.9rem; }
+
+    /* ── Month selector ── */
+    .month-selector {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 18px; margin-bottom: 28px;
+    }
+    .month-selector label { font-size: 0.8rem; color: var(--muted); font-weight: 600; margin-right: 4px; }
+    .month-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 5px 14px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .month-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .month-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+    .btn-select-all {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; padding: 5px 12px; font-size: 0.78rem; cursor: pointer;
+      transition: all 0.15s; margin-left: auto;
+    }
+    .btn-select-all:hover { border-color: var(--accent); color: var(--text); }
   </style>
 </head>
 <body>
@@ -83,6 +142,18 @@
 <div class="refresh-bar">
   <span class="last-update" id="last-update">Cargando datos desde Google Sheets...</span>
   <button class="btn-refresh" id="btn-refresh" onclick="loadData()">⟳ Actualizar datos</button>
+</div>
+
+<div class="month-selector" id="month-selector" style="display:none">
+  <label>Filtrar por mes:</label>
+  <button class="month-btn active" data-idx="0">Dic</button>
+  <button class="month-btn active" data-idx="1">Ene</button>
+  <button class="month-btn active" data-idx="2">Feb</button>
+  <button class="month-btn active" data-idx="3">Mar</button>
+  <button class="month-btn active" data-idx="4">Abr</button>
+  <button class="month-btn active" data-idx="5">May</button>
+  <button class="month-btn active" data-idx="6">Jun</button>
+  <button class="btn-select-all" id="btn-all">Seleccionar todos</button>
 </div>
 
 <div id="loading">Cargando datos desde Google Sheets...</div>
@@ -139,6 +210,32 @@
   <div class="cards-grid" id="areas-mejora"></div>
 </div>
 
+<hr />
+<div class="section-title">Comentarios Cualitativos <span class="section-sub">Voces de los extremos — positivos y áreas de mejora</span></div>
+<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Comentarios de alumnos con puntaje ≥ 9 (positivos) y ≤ 7 (críticos/mejoras), extraídos en tiempo real de cada formulario.</p>
+
+<div class="comments-tabs">
+  <button class="tab-btn active" data-form="all">Todos</button>
+  <button class="tab-btn" data-form="F1">F1 — Módulo 1</button>
+  <button class="tab-btn" data-form="F2">F2 — Módulo 5</button>
+  <button class="tab-btn" data-form="F3">F3 — Egreso</button>
+  <button class="tab-btn" data-form="F4">F4 — Post-programa</button>
+</div>
+
+<div id="comments-loading">Cargando comentarios...</div>
+<div id="comments-content" style="display:none">
+  <div class="comments-grid">
+    <div class="comments-col">
+      <h3><span style="color:var(--green)">●</span> Comentarios Positivos <span style="color:var(--muted);font-weight:400;font-size:0.78rem">(puntaje ≥ 9)</span></h3>
+      <div id="comments-positive"></div>
+    </div>
+    <div class="comments-col">
+      <h3><span style="color:var(--red)">●</span> Áreas de Mejora <span style="color:var(--muted);font-weight:400;font-size:0.78rem">(puntaje ≤ 7)</span></h3>
+      <div id="comments-critical"></div>
+    </div>
+  </div>
+</div>
+
 <footer>Dashboard conectado en vivo con Google Sheets • Los datos se actualizan automáticamente al abrir la página</footer>
 
 <script>
@@ -153,6 +250,35 @@ Chart.defaults.font.size = 11;
 const chartInstances = {};
 function destroyChart(id) {
   if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+// ── Estado de meses seleccionados (true = visible)
+const ALL_MONTHS = ['Dic','Ene','Feb','Mar','Abr','May','Jun'];
+let selectedMonths = new Set([0,1,2,3,4,5,6]);
+let cachedRows = null;
+
+// ── Inicializar selector de meses
+function initMonthSelector() {
+  document.querySelectorAll('.month-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      if (selectedMonths.has(idx)) {
+        if (selectedMonths.size > 1) { // mínimo 1 mes seleccionado
+          selectedMonths.delete(idx);
+          btn.classList.remove('active');
+        }
+      } else {
+        selectedMonths.add(idx);
+        btn.classList.add('active');
+      }
+      if (cachedRows) renderDashboard(cachedRows);
+    });
+  });
+  document.getElementById('btn-all').addEventListener('click', () => {
+    selectedMonths = new Set([0,1,2,3,4,5,6]);
+    document.querySelectorAll('.month-btn').forEach(b => b.classList.add('active'));
+    if (cachedRows) renderDashboard(cachedRows);
+  });
 }
 
 function parseVal(s) {
@@ -244,7 +370,7 @@ function barChart(id, label, data, color, months) {
 function buildTable(tableId, rows, months) {
   const t = document.getElementById(tableId);
   const allVals = rows.map(r => rowValues(r));
-  const validIdx = months.map((_,i) => i).filter(i => allVals.some(v => v[i] !== null));
+  const validIdx = months.map((_,i) => i).filter(i => selectedMonths.has(i) && allVals.some(v => v[i] !== null));
   let html = '<thead><tr><th>KPI</th><th>UM</th>';
   validIdx.forEach(i => { html += `<th>${months[i]}</th>`; });
   html += '<th>Promedio</th></tr></thead><tbody>';
@@ -270,6 +396,11 @@ function buildTable(tableId, rows, months) {
 function progressBar(label, value, color) {
   const pct = Math.min(100, (value / 10) * 100);
   return `<div class="progress-row"><div class="progress-label">${label}</div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div><div class="progress-val" style="color:${color}">${value.toFixed(2)}</div></div>`;
+}
+
+// ── Aplicar filtro de meses seleccionados (pone null en los no seleccionados)
+function filterM(arr) {
+  return arr.map((v, i) => selectedMonths.has(i) ? v : null);
 }
 
 function renderDashboard(rows) {
@@ -335,26 +466,26 @@ function renderDashboard(rows) {
   ].join('');
 
   // Gráficos F1
-  lineChart('f1Score',   'Puntaje',  f1Score,   C.purple, MONTHS, 7, 10);
-  lineChart('f1Roadmap', 'Roadmap',  f1Roadmap, C.teal,   MONTHS, 50, 100);
-  barChart ('f1Alumnos', 'Alumnos',  f1Alumnos, C.yellow, MONTHS);
-  barChart ('f1Tiempo',  'Días',     f1Tiempo,  C.purple, MONTHS);
+  lineChart('f1Score',   'Puntaje',  filterM(f1Score),   C.purple, MONTHS, 7, 10);
+  lineChart('f1Roadmap', 'Roadmap',  filterM(f1Roadmap), C.teal,   MONTHS, 50, 100);
+  barChart ('f1Alumnos', 'Alumnos',  filterM(f1Alumnos), C.yellow, MONTHS);
+  barChart ('f1Tiempo',  'Días',     filterM(f1Tiempo),  C.purple, MONTHS);
   buildTable('table-f1', b1, MONTHS);
 
   // Gráficos F2
-  lineChart('f2Acomp',  'CSM',        f2Acomp,  C.red,    MONTHS, 5, 10);
-  lineChart('f2Sat',    'Satisf.',    f2Sat,    C.teal,   MONTHS, 7, 10);
-  lineChart('f2Act',    'Actividad',  f2Act,    C.yellow, MONTHS, 4, 10);
-  barChart ('f2Tiempo', 'Días',       f2Tiempo, C.purple, MONTHS);
+  lineChart('f2Acomp',  'CSM',       filterM(f2Acomp),  C.red,    MONTHS, 5, 10);
+  lineChart('f2Sat',    'Satisf.',   filterM(f2Sat),    C.teal,   MONTHS, 7, 10);
+  lineChart('f2Act',    'Actividad', filterM(f2Act),    C.yellow, MONTHS, 4, 10);
+  barChart ('f2Tiempo', 'Días',      filterM(f2Tiempo), C.purple, MONTHS);
   buildTable('table-f2', b2, MONTHS);
   document.getElementById('alert-f2').innerHTML = lAcomp2 !== null && lAcomp2 < 7
     ? `<strong>⚠ Área crítica:</strong> Acompañamiento CSM en ${lAcomp2.toFixed(2)}/10. Actividad de Alumnos en tendencia bajista — revisar con el equipo de Customer Success.`
     : `<strong>✅ F2 estable.</strong> Satisfacción inicial alta. Monitorear Actividad de Alumnos.`;
 
   // Gráficos F3
-  lineChart('f3Sat',   'Satisf.', f3Sat,    C.teal,   MONTHS, 7, 10.5);
-  lineChart('f3NPS',   'NPS',     f3NPS,    C.purple, MONTHS, 7, 10.5);
-  barChart ('f3Tiempo','Días',    f3Tiempo, C.teal,   MONTHS);
+  lineChart('f3Sat',   'Satisf.', filterM(f3Sat),    C.teal,   MONTHS, 7, 10.5);
+  lineChart('f3NPS',   'NPS',     filterM(f3NPS),    C.purple, MONTHS, 7, 10.5);
+  barChart ('f3Tiempo','Días',    filterM(f3Tiempo), C.teal,   MONTHS);
   destroyChart('f3Radar');
   chartInstances['f3Radar'] = new Chart(document.getElementById('f3Radar'), {
     type: 'radar',
@@ -367,8 +498,8 @@ function renderDashboard(rows) {
   buildTable('table-f3', b3, MONTHS);
 
   // Gráficos F4
-  lineChart('f4Laboral', 'Laborales', f4Lab, C.yellow, MONTHS, 0, 11);
-  lineChart('f4Sat',     'Satisf.',   f4Sat, C.teal,   MONTHS, 0, 11);
+  lineChart('f4Laboral', 'Laborales', filterM(f4Lab), C.yellow, MONTHS, 0, 11);
+  lineChart('f4Sat',     'Satisf.',   filterM(f4Sat), C.teal,   MONTHS, 0, 11);
   buildTable('table-f4', b4, MONTHS);
   const labAvg = avg(f4Lab);
   document.getElementById('alert-f4').innerHTML = labAvg !== null && labAvg < 6
@@ -458,10 +589,11 @@ async function loadData() {
   try {
     const res = await fetch(CSV_URL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const rows = parseCSV(await res.text());
-    renderDashboard(rows);
-    document.getElementById('loading').style.display   = 'none';
-    document.getElementById('dashboard').style.display = 'block';
+    cachedRows = parseCSV(await res.text());
+    renderDashboard(cachedRows);
+    document.getElementById('loading').style.display        = 'none';
+    document.getElementById('dashboard').style.display      = 'block';
+    document.getElementById('month-selector').style.display = 'flex';
     const now = new Date();
     upd.textContent = `Último update: ${now.toLocaleDateString('es-AR')} ${now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`;
   } catch(e) {
@@ -473,7 +605,138 @@ async function loadData() {
   btn.disabled = false; btn.textContent = '⟳ Actualizar datos';
 }
 
+// ══════════════════════════════════════════
+// COMENTARIOS CUALITATIVOS
+// ══════════════════════════════════════════
+
+let allComments = [];  // { form, name, score, text, label, type }
+let activeFormFilter = 'all';
+
+// Configuración de cada formulario: qué columnas extraer
+const FORM_CONFIG = {
+  F1: {
+    scoreCol: 6,
+    comments: [
+      { col: 4, label: '¿Qué fue lo más valioso?', type: 'positive' },
+      { col: 5, label: 'Dificultades al inicio',   type: 'critical' },
+    ]
+  },
+  F2: {
+    scoreCol: 2,
+    comments: [
+      { col: 5, label: '¿Qué valorás del acompañamiento CSM?', type: 'positive' },
+      { col: 8, label: 'Mayor dificultad o traba',              type: 'critical' },
+    ]
+  },
+  F3: {
+    scoreCol: 2,
+    comments: [
+      { col: 7,  label: '¿Qué fue lo más valioso del programa?', type: 'positive' },
+      { col: 12, label: '¿Qué mejorarías del programa?',         type: 'critical' },
+    ]
+  },
+  F4: {
+    scoreCol: 2,
+    comments: [
+      { col: 10, label: 'Experiencia con la bolsa de trabajo', type: 'positive' },
+      { col: 7,  label: '¿Qué te está costando más?',         type: 'critical' },
+    ]
+  },
+};
+
+function scoreClass(s) {
+  if (s >= 9) return 'high';
+  if (s >= 7) return 'mid';
+  return 'low';
+}
+
+function firstName(fullName) {
+  return (fullName || 'Alumno').trim().split(/\s+/)[0];
+}
+
+function isValidComment(text) {
+  if (!text || text.trim().length < 8) return false;
+  const skip = ['no','nada','ninguna','ninguno','bien','ok','bueno','no hubo','ninguna traba'];
+  return !skip.includes(text.trim().toLowerCase());
+}
+
+async function loadComments() {
+  document.getElementById('comments-loading').style.display = 'block';
+  document.getElementById('comments-content').style.display = 'none';
+  allComments = [];
+
+  await Promise.all(Object.entries(FORM_CONFIG).map(async ([form, cfg]) => {
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${form}`;
+      const res  = await fetch(url);
+      if (!res.ok) return;
+      const rows = parseCSV(await res.text()).slice(1); // saltar header
+      rows.forEach(row => {
+        const name  = firstName(row[0]);
+        const score = parseVal(row[cfg.scoreCol]);
+        if (score === null) return;
+        cfg.comments.forEach(({ col, label, type }) => {
+          const text = (row[col] || '').trim().replace(/^"|"$/g, '');
+          if (!isValidComment(text)) return;
+          // Positivos: puntaje ≥ 9 y columna positiva; Críticos: puntaje ≤ 7 y columna crítica, o cualquier puntaje en columna crítica si es revelador
+          const isPositive = type === 'positive' && score >= 9;
+          const isCritical = type === 'critical' && score <= 7;
+          if (isPositive || isCritical) {
+            allComments.push({ form, name, score, text, label, type: isPositive ? 'positive' : 'critical' });
+          }
+        });
+      });
+    } catch(e) { console.warn('Error cargando', form, e); }
+  }));
+
+  document.getElementById('comments-loading').style.display = 'none';
+  document.getElementById('comments-content').style.display = 'block';
+  renderComments();
+}
+
+function renderComments() {
+  const filtered = activeFormFilter === 'all'
+    ? allComments
+    : allComments.filter(c => c.form === activeFormFilter);
+
+  const positives = filtered.filter(c => c.type === 'positive');
+  const criticals = filtered.filter(c => c.type === 'critical');
+
+  function buildCards(list) {
+    if (!list.length) return '<div class="no-comments">Sin comentarios para este filtro.</div>';
+    return list.map(c => `
+      <div class="comment-card ${c.type}">
+        <div class="cc-header">
+          <span class="cc-name">${c.name}</span>
+          <span class="cc-form">${c.form}</span>
+          <span class="cc-score ${scoreClass(c.score)}">${c.score}/10</span>
+        </div>
+        <div class="cc-text">"${c.text}"</div>
+        <div class="cc-label">${c.label}</div>
+      </div>`).join('');
+  }
+
+  document.getElementById('comments-positive').innerHTML = buildCards(positives);
+  document.getElementById('comments-critical').innerHTML = buildCards(criticals);
+}
+
+function initCommentsTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFormFilter = btn.dataset.form;
+      renderComments();
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+
+initMonthSelector();
+initCommentsTabs();
 loadData();
+loadComments();
 </script>
 </body>
 </html>
