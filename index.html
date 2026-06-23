@@ -272,12 +272,14 @@ function initMonthSelector() {
         btn.classList.add('active');
       }
       if (cachedRows) renderDashboard(cachedRows);
+      renderComments();
     });
   });
   document.getElementById('btn-all').addEventListener('click', () => {
     selectedMonths = new Set([0,1,2,3,4,5,6]);
     document.querySelectorAll('.month-btn').forEach(b => b.classList.add('active'));
     if (cachedRows) renderDashboard(cachedRows);
+    renderComments();
   });
 }
 
@@ -613,36 +615,47 @@ let allComments = [];  // { form, name, score, text, label, type }
 let activeFormFilter = 'all';
 
 // Configuración de cada formulario: qué columnas extraer
+// dateCol: columna con fecha en formato dd/mm/yyyy para filtrar por mes
 const FORM_CONFIG = {
   F1: {
-    scoreCol: 6,
+    scoreCol: 6, dateCol: 9,
     comments: [
       { col: 4, label: '¿Qué fue lo más valioso?', type: 'positive' },
       { col: 5, label: 'Dificultades al inicio',   type: 'critical' },
     ]
   },
   F2: {
-    scoreCol: 2,
+    scoreCol: 2, dateCol: 11,
     comments: [
       { col: 5, label: '¿Qué valorás del acompañamiento CSM?', type: 'positive' },
       { col: 8, label: 'Mayor dificultad o traba',              type: 'critical' },
     ]
   },
   F3: {
-    scoreCol: 2,
+    scoreCol: 2, dateCol: 15,
     comments: [
       { col: 7,  label: '¿Qué fue lo más valioso del programa?', type: 'positive' },
       { col: 12, label: '¿Qué mejorarías del programa?',         type: 'critical' },
     ]
   },
   F4: {
-    scoreCol: 2,
+    scoreCol: 2, dateCol: 13,
     comments: [
       { col: 10, label: 'Experiencia con la bolsa de trabajo', type: 'positive' },
       { col: 7,  label: '¿Qué te está costando más?',         type: 'critical' },
     ]
   },
 };
+
+// Convierte fecha dd/mm/yyyy al índice de mes del dashboard (Dic=0 … Jun=6)
+function dateToMonthIdx(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.trim().split('/');
+  if (parts.length < 2) return null;
+  const m = parseInt(parts[1]);
+  const map = {12:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6};
+  return map[m] ?? null;
+}
 
 function scoreClass(s) {
   if (s >= 9) return 'high';
@@ -675,14 +688,15 @@ async function loadComments() {
         const name  = firstName(row[0]);
         const score = parseVal(row[cfg.scoreCol]);
         if (score === null) return;
+        const dateStr  = (row[cfg.dateCol] || '').trim().replace(/^"|"$/g, '');
+        const monthIdx = dateToMonthIdx(dateStr);
         cfg.comments.forEach(({ col, label, type }) => {
           const text = (row[col] || '').trim().replace(/^"|"$/g, '');
           if (!isValidComment(text)) return;
-          // Positivos: puntaje ≥ 9 y columna positiva; Críticos: puntaje ≤ 7 y columna crítica, o cualquier puntaje en columna crítica si es revelador
           const isPositive = type === 'positive' && score >= 9;
           const isCritical = type === 'critical' && score <= 7;
           if (isPositive || isCritical) {
-            allComments.push({ form, name, score, text, label, type: isPositive ? 'positive' : 'critical' });
+            allComments.push({ form, name, score, text, label, monthIdx, type: isPositive ? 'positive' : 'critical' });
           }
         });
       });
@@ -695,9 +709,11 @@ async function loadComments() {
 }
 
 function renderComments() {
-  const filtered = activeFormFilter === 'all'
-    ? allComments
-    : allComments.filter(c => c.form === activeFormFilter);
+  const filtered = allComments.filter(c => {
+    const formOk  = activeFormFilter === 'all' || c.form === activeFormFilter;
+    const monthOk = c.monthIdx === null || selectedMonths.has(c.monthIdx);
+    return formOk && monthOk;
+  });
 
   const positives = filtered.filter(c => c.type === 'positive');
   const criticals = filtered.filter(c => c.type === 'critical');
