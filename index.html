@@ -272,12 +272,14 @@ function initMonthSelector() {
         btn.classList.add('active');
       }
       if (cachedRows) renderDashboard(cachedRows);
+      renderComments();
     });
   });
   document.getElementById('btn-all').addEventListener('click', () => {
     selectedMonths = new Set([0,1,2,3,4,5,6]);
     document.querySelectorAll('.month-btn').forEach(b => b.classList.add('active'));
     if (cachedRows) renderDashboard(cachedRows);
+    renderComments();
   });
 }
 
@@ -613,31 +615,31 @@ let allComments = [];  // { form, name, score, text, label, type }
 let activeFormFilter = 'all';
 
 // Configuración de cada formulario
-// dateCol: columna "Submission Date" con formato "Jan 2nd 2026, 1:56 pm"
+// dateCol: columna "Fecha corregida" con formato dd/mm/yyyy (confirmado por inspección directa)
 const FORM_CONFIG = {
   F1: {
-    scoreCol: 6, dateCol: 8,
+    scoreCol: 6, dateCol: 9,   // col 9 = "2/1/2026"
     comments: [
       { col: 4, label: '¿Qué fue lo más valioso?', type: 'positive' },
       { col: 5, label: 'Dificultades al inicio',   type: 'critical' },
     ]
   },
   F2: {
-    scoreCol: 2, dateCol: 10,
+    scoreCol: 2, dateCol: 11,  // col 11 = "2/1/2026"
     comments: [
       { col: 5, label: '¿Qué valorás del acompañamiento CSM?', type: 'positive' },
       { col: 8, label: 'Mayor dificultad o traba',              type: 'critical' },
     ]
   },
   F3: {
-    scoreCol: 2, dateCol: 14,
+    scoreCol: 2, dateCol: 15,  // col 15 = "9/1/2026"
     comments: [
       { col: 7,  label: '¿Qué fue lo más valioso del programa?', type: 'positive' },
       { col: 12, label: '¿Qué mejorarías del programa?',         type: 'critical' },
     ]
   },
   F4: {
-    scoreCol: 2, dateCol: 12,
+    scoreCol: 2, dateCol: 13,  // col 13 = "19/1/2026"
     comments: [
       { col: 10, label: 'Experiencia con la bolsa de trabajo', type: 'positive' },
       { col: 7,  label: '¿Qué te está costando más?',         type: 'critical' },
@@ -645,15 +647,18 @@ const FORM_CONFIG = {
   },
 };
 
-// Parsea "Jan 2nd 2026, 1:56 pm" → índice de mes del dashboard (Dic=0 … Jun=6)
+// Parsea "dd/mm/yyyy" → índice de mes del dashboard (Dic=0 … Jun=6)
+// Si no puede parsear, devuelve null → el comentario siempre se muestra
 function dateToMonthIdx(dateStr) {
   if (!dateStr) return null;
   const clean = dateStr.trim().replace(/^"|"$/g, '');
-  const monthMap = { Dec:0, Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6 };
-  const match = clean.match(/^([A-Za-z]{3})/);
-  if (!match) return null;
-  const key = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-  return monthMap[key] ?? null;
+  if (!clean) return null;
+  const parts = clean.split('/');
+  if (parts.length < 2) return null;
+  const m = parseInt(parts[1]);
+  if (isNaN(m)) return null;
+  const map = { 12:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 };
+  return map[m] ?? null;
 }
 
 function scoreClass(s) {
@@ -710,9 +715,11 @@ async function loadComments() {
 }
 
 function renderComments() {
-  const filtered = allComments.filter(c =>
-    activeFormFilter === 'all' || c.form === activeFormFilter
-  );
+  const filtered = allComments.filter(c => {
+    const formOk  = activeFormFilter === 'all' || c.form === activeFormFilter;
+    const monthOk = selectedMonths.size === 7 || c.monthIdx === null || selectedMonths.has(c.monthIdx);
+    return formOk && monthOk;
+  });
 
   const positives = filtered.filter(c => c.type === 'positive');
   const criticals = filtered.filter(c => c.type === 'critical');
