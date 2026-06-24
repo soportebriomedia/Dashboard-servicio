@@ -212,7 +212,7 @@
 
 <hr />
 <div class="section-title">Comentarios Cualitativos <span class="section-sub">Voces de los extremos — positivos y áreas de mejora</span></div>
-<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Comentarios de alumnos con puntaje ≥ 9 (positivos) y ≤ 7 (críticos/mejoras), extraídos en tiempo real de cada formulario.</p>
+<p style="color:var(--muted);font-size:0.83rem;margin-bottom:18px;">Comentarios de alumnos con puntaje ≥ 9 (positivos) y ≤ 7 (críticos/mejoras). Se filtran por formulario pero no por mes, ya que los alumnos completan cada formulario en momentos distintos de su recorrido.</p>
 
 <div class="comments-tabs">
   <button class="tab-btn active" data-form="all">Todos</button>
@@ -272,14 +272,12 @@ function initMonthSelector() {
         btn.classList.add('active');
       }
       if (cachedRows) renderDashboard(cachedRows);
-      renderComments();
     });
   });
   document.getElementById('btn-all').addEventListener('click', () => {
     selectedMonths = new Set([0,1,2,3,4,5,6]);
     document.querySelectorAll('.month-btn').forEach(b => b.classList.add('active'));
     if (cachedRows) renderDashboard(cachedRows);
-    renderComments();
   });
 }
 
@@ -712,12 +710,9 @@ async function loadComments() {
 }
 
 function renderComments() {
-  const allSelected = selectedMonths.size === 7;
-  const filtered = allComments.filter(c => {
-    const formOk  = activeFormFilter === 'all' || c.form === activeFormFilter;
-    const monthOk = allSelected || (c.monthIdx !== null && selectedMonths.has(c.monthIdx));
-    return formOk && monthOk;
-  });
+  const filtered = allComments.filter(c =>
+    activeFormFilter === 'all' || c.form === activeFormFilter
+  );
 
   const positives = filtered.filter(c => c.type === 'positive');
   const criticals = filtered.filter(c => c.type === 'critical');
