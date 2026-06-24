@@ -691,13 +691,15 @@ async function loadComments() {
         if (score === null) return;
         const dateStr  = (row[cfg.dateCol] || '').trim().replace(/^"|"$/g, '');
         const monthIdx = dateToMonthIdx(dateStr);
+        // Formatear fecha legible desde "Jan 2nd 2026, 1:56 pm"
+        const dateDisplay = dateStr ? dateStr.replace(/(\w+ \d+)\w*(,?)/, '$1$2').replace(/,.*/, '').trim() : '';
         cfg.comments.forEach(({ col, label, type }) => {
           const text = (row[col] || '').trim().replace(/^"|"$/g, '');
           if (!isValidComment(text)) return;
           const isPositive = type === 'positive' && score >= 9;
           const isCritical = type === 'critical' && score <= 7;
           if (isPositive || isCritical) {
-            allComments.push({ form, name, score, text, label, monthIdx, type: isPositive ? 'positive' : 'critical' });
+            allComments.push({ form, name, score, text, label, monthIdx, dateDisplay, type: isPositive ? 'positive' : 'critical' });
           }
         });
       });
@@ -730,7 +732,10 @@ function renderComments() {
           <span class="cc-score ${scoreClass(c.score)}">${c.score}/10</span>
         </div>
         <div class="cc-text">"${c.text}"</div>
-        <div class="cc-label">${c.label}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+          <div class="cc-label">${c.label}</div>
+          ${c.dateDisplay ? `<div style="font-size:0.72rem;color:var(--muted)">${c.dateDisplay}</div>` : ''}
+        </div>
       </div>`).join('');
   }
 
